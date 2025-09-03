@@ -62,6 +62,7 @@ public class MosipTestRunner {
 	public static boolean skipAll = false;
 	
 	public static String PLUGIN_NAME = null;
+
 	/**
 	 * C Main method to start mosip test execution
 	 * 
@@ -132,6 +133,13 @@ public class MosipTestRunner {
 				additionalPropertiesMap.put(SignupConstants.PRE_CONFIGURED_OTP_STRING, SignupConstants.ALL_ONE_OTP_STRING);
 				SignupConfigManager.add(additionalPropertiesMap);
 				SignupUtil.getSupportedLanguages();
+				
+				DependencyResolver.loadDependencies(getGlobalResourcePath() + "/config/testCaseInterDependency_"
+						+ SignupUtil.getPluginName() + ".json");
+				if (!testCasesToExecuteString.isBlank()) {
+					SignupUtil.testCasesInRunScope = DependencyResolver.getDependencies(testCasesToExecuteString);
+				}
+				
 				startTestRunner();
 				
 				// Used for generating the test case interdependency JSON file

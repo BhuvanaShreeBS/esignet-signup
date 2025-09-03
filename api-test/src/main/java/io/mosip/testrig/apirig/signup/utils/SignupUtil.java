@@ -136,26 +136,40 @@ public class SignupUtil extends AdminTestUtil {
 	public static TestCaseDTO isTestCaseValidForTheExecution(TestCaseDTO testCaseDTO) {
 		String testCaseName = testCaseDTO.getTestCaseName();
 		String inputJson = testCaseDTO.getInput();
+
+		currentTestCaseName = testCaseName;
+
+		int indexof = testCaseName.indexOf("_");
+		String modifiedTestCaseName = testCaseName.substring(indexof + 1);
+
+		addTestCaseDetailsToMap(modifiedTestCaseName, testCaseDTO.getUniqueIdentifier());
+
+		if (!testCasesInRunScope.isEmpty()
+				&& testCasesInRunScope.contains(testCaseDTO.getUniqueIdentifier()) == false) {
+			throw new SkipException(GlobalConstants.NOT_IN_RUN_SCOPE_MESSAGE);
+		}
+
+		// When the captcha is enabled we cannot execute the test case as we can not
+		// generate the captcha token
 		
-		//When the captcha is enabled we cannot execute the test case as we can not generate the captcha token
 		if (isCaptchaEnabled() == true) {
 			GlobalMethods.reportCaptchaStatus(GlobalConstants.CAPTCHA_ENABLED, true);
 			throw new SkipException(GlobalConstants.CAPTCHA_ENABLED_MESSAGE);
 
 		}
-		
+
 		if (MosipTestRunner.skipAll == true) {
 			throw new SkipException(GlobalConstants.PRE_REQUISITE_FAILED_MESSAGE);
 		}
-		
-		
+
 		if (getIdentityPluginNameFromEsignetActuator().toLowerCase().contains("mockauthenticationservice")) {
-			
-			// TO DO - need to conform whether esignet distinguishes between UIN and VID. BAsed on that need to remove VID test case from YAML.
+
+			// TO DO - need to conform whether esignet distinguishes between UIN and VID.
+			// BAsed on that need to remove VID test case from YAML.
 			BaseTestCase.setSupportedIdTypes(Arrays.asList("UIN"));
-			
-			// Let run test cases eSignet & mock (for identity)   -- only UIN  test cases
-			
+
+			// Let run test cases eSignet & mock (for identity) -- only UIN test cases
+
 			String endpoint = testCaseDTO.getEndPoint();
 			if (endpoint.contains("/esignet/vci/") == true) {
 				throw new SkipException(GlobalConstants.FEATURE_NOT_SUPPORTED_MESSAGE);
@@ -183,16 +197,16 @@ public class SignupUtil extends AdminTestUtil {
 			BaseTestCase.setSupportedIdTypes(Arrays.asList("UIN", "VID"));
 
 			String endpoint = testCaseDTO.getEndPoint();
-			
+
 			if ((endpoint.contains("/mock-identity-system/") == true)
 					|| testCaseName.equals("Signup_ESignet_CreateOIDCClient_all_Valid_Smoke_sid")) {
 				throw new SkipException(GlobalConstants.FEATURE_NOT_SUPPORTED_MESSAGE);
 			}
-				
+
 			JSONArray individualBiometricsArray = new JSONArray(
 					getValueFromAuthActuator(SignupConstants.JSON_PROPERTY_STRING, "individualBiometrics"));
 			String individualBiometrics = individualBiometricsArray.getString(0);
-			
+
 			JSONArray phoneArray = new JSONArray(
 					getValueFromAuthActuator(SignupConstants.JSON_PROPERTY_STRING, SignupConstants.PHONE_STRING));
 			String phoneFieldValue = phoneArray.getString(0);
@@ -202,17 +216,17 @@ public class SignupUtil extends AdminTestUtil {
 					&& (!isElementPresent(globalRequiredFields, individualBiometrics))) {
 				throw new SkipException(GlobalConstants.FEATURE_NOT_SUPPORTED_MESSAGE);
 			}
-			
+
 			if ((testCaseName.contains("_RegisterUserNegTC_WITHout_phone"))
 					&& (!isElementPresent(globalRequiredFields, phoneFieldValue))) {
 				throw new SkipException(GlobalConstants.FEATURE_NOT_SUPPORTED_MESSAGE);
 			}
 
 		} else if (getIdentityPluginNameFromEsignetActuator().toLowerCase().contains("sunbird")) {
-			// Let run test cases eSignet & Sunbird (for identity)   -- only KBI 
-			
+			// Let run test cases eSignet & Sunbird (for identity) -- only KBI
+
 		}
-		
+
 		if (testCaseDTO.isValidityCheckRequired()) {
 			if (testCaseName.contains("uin") || testCaseName.contains("UIN") || testCaseName.contains("Uin")) {
 				if (BaseTestCase.getSupportedIdTypesValue().contains("UIN")
