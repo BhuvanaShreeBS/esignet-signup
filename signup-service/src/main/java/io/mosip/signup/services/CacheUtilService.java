@@ -45,7 +45,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static io.mosip.signup.util.SignUpConstants.*;
+import static io.mosip.signup.util.SignUpConstants.SLOTS_CONNECTED;
 
 @Slf4j
 @Service
@@ -389,5 +389,4 @@ public class CacheUtilService {
         List<Boolean> scriptExists = redisConnectionFactory.getConnection().scriptingCommands().scriptExists(scriptHash);
         return scriptExists == null || !scriptExists.get(0);
     }
-
 }
