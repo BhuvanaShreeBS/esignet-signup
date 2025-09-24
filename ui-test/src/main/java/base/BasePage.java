@@ -6,6 +6,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 
 import org.openqa.selenium.Alert;
@@ -23,6 +24,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import utils.ClaimsUtil;
 import utils.EsignetConfigManager;
 import utils.WaitUtil;
 
@@ -229,4 +231,33 @@ public class BasePage {
 		LOGGER.info("Retrieved text: {}", text);
 		return text;
 	}
+
+	public String authorizeUrl;
+
+	public String getAuthorizeUrl() {
+		return authorizeUrl;
+	}
+
+	public void setAuthorizeUrl(String url) {
+		this.authorizeUrl = url;
+		ClaimsUtil.parseFromUrl(url);
+	}
+
+	public List<String> getClaims(String type) {
+		if (authorizeUrl == null) {
+			System.out.println("Authorize URL not set.");
+			return Collections.emptyList();
+		}
+
+		if ("mandatory".equalsIgnoreCase(type)) {
+			return ClaimsUtil.getMandatoryClaims();
+		} else {
+			return ClaimsUtil.getVoluntaryClaims();
+		}
+	}
+
+	public String getExpectedDefaultLanguage() {
+		return ClaimsUtil.mapLangToName(ClaimsUtil.getDefaultLanguage());
+	}
+
 }
