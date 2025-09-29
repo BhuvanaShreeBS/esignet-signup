@@ -110,7 +110,7 @@ public class SignUpStepDef {
 
 	@Then("user verify the help text in mobile number text field is displayed")
 	public void verifyHelpTextInMobileNumberTextBox() {
-		assertTrue(registrationPage.isHelpTextInMobileNumberTextBoxDisplayed());
+		assertTrue(registrationPage.isHelpTextInMobileNumberTextBoxDisplayed(""));
 	}
 
 	@When("user enters less than minimum digit in the mobile number text box")
@@ -206,7 +206,7 @@ public class SignUpStepDef {
 
 	@When("user clicks the browser back button")
 	public void userClicksTheBrowserBackButton() {
-		basePage.browserBackButton();
+		basePage.browserBackButton("click on back button");
 	}
 
 	@Then("user clicks on the Continue button")
@@ -843,6 +843,16 @@ public class SignUpStepDef {
 
 	@When("user clicks on Register button")
 	public void userClicksOnRegisterButton() {
+		registrationPage.clickOnLanguageSelectionOption();
+
+		String languagePassed = MultiLanguageUtil.getDisplayName(BaseTestUtil.getThreadLocalLanguage());
+
+		WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));
+
+		WebElement langOption = wait
+				.until(ExpectedConditions.elementToBeClickable(By.xpath("//div[text()='" + languagePassed + "']")));
+		langOption.click();
+		BaseTestUtil.setThreadLocalLanguage(languagePassed);
 		signUpPage.clickOnRegisterButton();
 	}
 
