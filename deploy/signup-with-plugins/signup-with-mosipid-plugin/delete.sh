@@ -9,7 +9,7 @@ fi
 function Deleting_signup_with_mosipid_plugin() {
   NS=signup
   while true; do
-      read -p "Are you sure you want to delete signup helm charts?(Y/n) " yn
+      read -p "Are you sure you want to delete signup-with-mosipid-plugin helm charts?(Y/n) " yn
       if [[ $yn = "Y" ]] || [[ $yn = "y" ]];
         then
           helm -n $NS delete signup-mosipid

@@ -5,9 +5,6 @@ modules:
       registry: docker.io
       repository: mosipqa/uitest-signup
       tag: develop
-    securityContext:
-      runAsUser: 0
-      runAsGroup: 0
 
 extraEnvVarsCM:
   - esignet-global
