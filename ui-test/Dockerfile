@@ -1,5 +1,5 @@
 # --- Base image ---
-FROM openjdk:21-slim
+FROM eclipse-temurin:21-jre-alpine
 
 # --- Build-time arguments (MUST be declared before LABEL) ---
 ARG SOURCE
@@ -25,12 +25,11 @@ ENV DISPLAY=:99
 ENV work_dir=/home/${container_user}
 
 # --- Install dependencies & setup user ---
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        wget curl unzip xvfb libxi6 libgconf-2-4 chromium chromium-driver && \
+RUN apk -q update && \
+    apk add --no-cache wget curl unzip xvfb libxi chromium chromium-chromedriver bash shadow && \
     \
-    groupadd -g ${container_user_gid} ${container_user_group} && \
-    useradd -m -u ${container_user_uid} -g ${container_user_group} -s /bin/bash ${container_user} && \
+    addgroup -g ${container_user_gid} ${container_user_group} && \
+    adduser -s /bin/sh -u ${container_user_uid} -G ${container_user_group} -h /home/${container_user} --disabled-password ${container_user} && \
     \
     curl -LO "https://storage.googleapis.com/kubernetes-release/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl" && \
     chmod +x kubectl && mv kubectl /usr/local/bin/ && \
