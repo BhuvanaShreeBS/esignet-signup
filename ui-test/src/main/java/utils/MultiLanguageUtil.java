@@ -57,5 +57,14 @@ public class MultiLanguageUtil {
 			return new String(in.readAllBytes(), StandardCharsets.UTF_8);
 		}
 	}
+	
+	public static String getThreeLetterLangCode(String twoLetterCode) {
+		for (Map.Entry<String, String> entry : langCodeMappingMap.entrySet()) {
+			if (entry.getValue().equals(twoLetterCode)) {
+				return entry.getKey();
+			}
+		}
+		return twoLetterCode;
+	}
 
 }

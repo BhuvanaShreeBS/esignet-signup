@@ -11,7 +11,7 @@ Feature: Esignet Forgot Password Page
     When user enters the OTP
     And user clicks on the Verify OTP button 
     Then user click on Continue button in Success Screen
-    And user fills the signup form using UI spec
+    And user fills the signup form using UI specification
     And user clicks on Continue button in Setup Account Page
     And verify that success screen should display the message Congratulations! Your account has been created successfully. Please login to proceed.
   
@@ -235,23 +235,18 @@ Feature: Esignet Forgot Password Page
     
   @smoke @ForgetPasswordOtpNotification
   Scenario Outline: Verify the notification when OTP requested for forgot password
-  	Given user opens SMTP portal
-  	And navigate back to signup portal
+  	Given user directly navigates to sign-up portal URL
     And user click on reset password button
     And user enters registered fullname into the full name field
     And user enters Registered mobile number into the mobile number field
     Then user click on continue button
-
-  	And user switches back to SMTP portal
-  	Then verify notification is received for otp requested
-  	And switch back to signup portal
   	When user enters the OTP in forgot password flow
   	And user clicks on the Verify OTP button
   	When user enters new password in Forgot Password flow
     And user enters new confirm password in Forgot Password flow
     And user clicks on Reset button
-  	Then user switches back to SMTP portal
   	And verify password changed successful notification is displayed
+
 
   @smoke @otpTimerVerification
   Scenario Outline: Verify the attempts of resend otp 

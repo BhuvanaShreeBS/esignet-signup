@@ -1,10 +1,14 @@
 package utils;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 
 import org.apache.log4j.Level;
@@ -514,7 +518,19 @@ public class EsignetUtil extends AdminTestUtil {
 
 	public static String getMoreThanMaxLengthFullName(String lang) {
 		int maxLength = extractMaxLength(getRegexForFullName(lang));
-		return generateKhmerName(maxLength + 20);
+		Random random = new Random();
+		StringBuilder name = new StringBuilder();
+
+		int totalLength = maxLength + 20;
+
+		int[][] ranges = { { 0x1780, 0x17FF }, { 0x19E0, 0x19FF } };
+
+		for (int i = 0; i < totalLength; i++) {
+			int[] range = ranges[random.nextInt(ranges.length)];
+			int codePoint = range[0] + random.nextInt(range[1] - range[0] + 1);
+			name.append((char) codePoint);
+		}
+		return name.toString();
 	}
 
 	public static String getNumericFullName(String lang) {
@@ -643,4 +659,17 @@ public class EsignetUtil extends AdminTestUtil {
 
 		return fieldsMap;
 	}
+	
+	public static String getRandomDOB() {
+	    LocalDate today = LocalDate.now();
+	    LocalDate earliest = today.minusYears(120);
+	    long daysRange = ChronoUnit.DAYS.between(earliest, today);
+
+	    long randomDays = ThreadLocalRandom.current().nextLong(daysRange);
+	    LocalDate dob = earliest.plusDays(randomDays);
+
+	    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+	    return dob.format(formatter);
+	}
+
 }
