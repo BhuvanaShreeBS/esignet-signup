@@ -5,6 +5,7 @@
  */
 package io.mosip.signup.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.mosip.esignet.core.exception.EsignetException;
@@ -1885,20 +1886,138 @@ public class RegistrationServiceTest {
     }
 
     @Test
-    public void uploadFile_withValidTransaction_thenPass() {
+    public void uploadFile_withValidTransaction_thenPass() throws JsonProcessingException {
         String transactionId = "txn-123";
         String fieldName = "photo";
-        byte[] fileContent = "test-image".getBytes();
-        MultipartFile file = new MockMultipartFile("file", fileContent);
+        byte[] pngBytes = new byte[]{
+                (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+                0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52
+        };
+        MultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", pngBytes);
 
         RegistrationTransaction transaction = new RegistrationTransaction("user", Purpose.REGISTRATION);
         when(cacheUtilService.getChallengeVerifiedTransaction(transactionId)).thenReturn(transaction);
+
+        String uiSpecJson = """
+        {
+          "schema": [
+            {
+              "id": "photo",
+              "controlType": "fileUpload",
+              "acceptedFileTypes": ["image/jpeg", "image/png"]
+            }
+          ]
+        }
+        """;
+        JsonNode uiSpecNode = objectMapper.readTree(uiSpecJson);
+        when(profileRegistryPlugin.getUISpecification()).thenReturn(uiSpecNode);
 
         RegisterResponse response = registrationService.uploadFile(transactionId, fieldName, file);
 
         Assert.assertNotNull(response);
         Assert.assertEquals(ActionStatus.UPLOADED, response.getStatus());
         verify(cacheUtilService, times(1)).setRegistrationFiles(eq(transactionId), any(RegistrationFiles.class));
+        verify(profileRegistryPlugin, times(1)).getUISpecification();
+    }
+
+    @Test
+    public void uploadFile_withUnrecognizedFileType_throwsInvalidFileType() throws JsonProcessingException {
+        String transactionId = "txn-123";
+        String fieldName = "photo";
+        // Random bytes that don't match any known file signature
+        byte[] unknownBytes = new byte[]{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+        MultipartFile file = new MockMultipartFile("file", "unknown.bin", "application/octet-stream", unknownBytes);
+
+        RegistrationTransaction transaction = new RegistrationTransaction("user", Purpose.REGISTRATION);
+        when(cacheUtilService.getChallengeVerifiedTransaction(transactionId)).thenReturn(transaction);
+
+        // UI spec with "photo" field that accepts image types
+        String uiSpecJson = """
+        {
+          "schema": [
+            {
+              "id": "photo",
+              "controlType": "fileUpload",
+              "acceptedFileTypes": ["image/png", "image/jpeg"]
+            }
+          ]
+        }
+    """;
+        JsonNode uiSpecNode = objectMapper.readTree(uiSpecJson);
+        when(profileRegistryPlugin.getUISpecification()).thenReturn(uiSpecNode);
+
+        try {
+            registrationService.uploadFile(transactionId, fieldName, file);
+            Assert.fail("Expected SignUpException to be thrown");
+        } catch (SignUpException e) {
+            Assert.assertEquals(ErrorConstants.INVALID_FILE_TYPE, e.getErrorCode());
+        }
+    }
+
+    @Test
+    public void uploadFile_withFieldNameNotInUISpec_throwsInvalidField() throws JsonProcessingException {
+        String transactionId = "txn-123";
+        String fieldName = "unknownField";
+        byte[] pngBytes = new byte[]{
+                (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A
+        };
+        MultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", pngBytes);
+
+        RegistrationTransaction transaction = new RegistrationTransaction("user", Purpose.REGISTRATION);
+        when(cacheUtilService.getChallengeVerifiedTransaction(transactionId)).thenReturn(transaction);
+
+        String uiSpecJson = """
+        {
+          "schema": [
+            {
+              "id": "photo",
+              "controlType": "fileUpload",
+              "acceptedFileTypes": ["image/png", "image/jpeg"]
+            }
+          ]
+        }
+        """;
+        JsonNode uiSpecNode = objectMapper.readTree(uiSpecJson);
+        when(profileRegistryPlugin.getUISpecification()).thenReturn(uiSpecNode);
+
+        SignUpException ex = Assert.assertThrows(SignUpException.class,
+                () -> registrationService.uploadFile(transactionId, fieldName, file));
+        Assert.assertEquals(ErrorConstants.INVALID_FIELD, ex.getErrorCode());
+    }
+
+
+    @Test
+    public void uploadFile_withMimeTypeNotInAllowedTypes_throwsInvalidFileType() throws JsonProcessingException {
+        String transactionId = "txn-123";
+        String fieldName = "photo";
+        // Valid PDF magic bytes (25504446 = %PDF)
+        byte[] pdfBytes = new byte[]{0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34};
+        MultipartFile file = new MockMultipartFile("file", "document.pdf", "application/pdf", pdfBytes);
+
+        RegistrationTransaction transaction = new RegistrationTransaction("user", Purpose.REGISTRATION);
+        when(cacheUtilService.getChallengeVerifiedTransaction(transactionId)).thenReturn(transaction);
+
+        // UI spec with "photo" field that only accepts image/png and image/jpeg, NOT application/pdf
+        String uiSpecJson = """
+        {
+          "schema": [
+            {
+              "id": "photo",
+              "controlType": "fileUpload",
+              "acceptedFileTypes": ["image/png", "image/jpeg"]
+            }
+          ]
+        }
+    """;
+        JsonNode uiSpecNode = objectMapper.readTree(uiSpecJson);
+        when(profileRegistryPlugin.getUISpecification()).thenReturn(uiSpecNode);
+
+        try {
+            registrationService.uploadFile(transactionId, fieldName, file);
+            Assert.fail("Expected SignUpException to be thrown");
+        } catch (SignUpException e) {
+            Assert.assertEquals(ErrorConstants.INVALID_FILE_TYPE, e.getErrorCode());
+        }
     }
 
     @Test(expected = InvalidTransactionException.class)
@@ -1920,11 +2039,30 @@ public class RegistrationServiceTest {
 
         RegistrationTransaction transaction = new RegistrationTransaction("user", Purpose.REGISTRATION);
         when(cacheUtilService.getChallengeVerifiedTransaction(transactionId)).thenReturn(transaction);
+
+        byte[] pngBytes = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+
+        when(file.getInputStream()).thenAnswer(invocation -> new java.io.ByteArrayInputStream(pngBytes));
+        when(file.isEmpty()).thenReturn(false);
         when(file.getBytes()).thenThrow(new IOException("Read error"));
+
+        String uiSpecJson = """
+            {
+                "schema": [
+                    {
+                        "id": "photo",
+                        "controlType": "fileUpload",
+                        "acceptedFileTypes": ["image/png", "image/jpeg"]
+                    }
+                ]
+            }
+        """;
+        JsonNode uiSpecNode = objectMapper.readTree(uiSpecJson);
+        when(profileRegistryPlugin.getUISpecification()).thenReturn(uiSpecNode);
 
         try {
             registrationService.uploadFile(transactionId, fieldName, file);
-            Assert.fail();
+            Assert.fail("Expected SignUpException to be thrown");
         } catch (SignUpException signUpException) {
             Assert.assertEquals(ErrorConstants.UPLOAD_FAILED, signUpException.getErrorCode());
         }

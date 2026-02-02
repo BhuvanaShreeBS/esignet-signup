@@ -30,6 +30,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.InputStream;
 import java.util.Base64;
 
 
@@ -317,6 +319,35 @@ public class RegistrationService {
         return profileRegistryPlugin.getUISpecification();
     }
 
+    private void validateFieldAndFile(MultipartFile file, String fieldName) {
+        JsonNode uiSpec = getUiSpec();
+        Set<String> allowedTypesForField = UploadFileUtils.getAcceptedTypesForField(uiSpec, fieldName);
+
+        if (allowedTypesForField.isEmpty()) {
+            log.error("Invalid field for file upload:  {}",fieldName);
+            throw new SignUpException(ErrorConstants.INVALID_FIELD);
+        }
+
+        String detectedMimeType;
+        try (InputStream inputStream = file.getInputStream()) {
+            detectedMimeType = UploadFileUtils.detectMimeType(inputStream);
+        } catch (IOException e) {
+            log.error("Failed to read uploaded file", e);
+            throw new SignUpException(ErrorConstants.UPLOAD_FAILED);
+        }
+
+        if (UploadFileUtils.UNKNOWN_MIME_TYPE.equals(detectedMimeType)) {
+            log.error("Unrecognized file type for field: {}", fieldName);
+            throw new SignUpException(ErrorConstants.INVALID_FILE_TYPE);
+        }
+
+        if (!allowedTypesForField.contains(detectedMimeType)) {
+            log.error("Invalid file type for field: {}. Detected: {}, Allowed: {}",
+                    fieldName, detectedMimeType, allowedTypesForField);
+            throw new SignUpException(ErrorConstants.INVALID_FILE_TYPE);
+        }
+    }
+
     public RegisterResponse uploadFile(String transactionId, String fieldName, MultipartFile file) throws SignUpException {
         RegistrationTransaction transaction = cacheUtilService.getChallengeVerifiedTransaction(transactionId);
         if(transaction == null) {
@@ -329,6 +360,8 @@ public class RegistrationService {
             log.error("Invalid fieldName or file {} {}", fieldName, file);
             throw new SignUpException(ErrorConstants.INVALID_REQUEST);
         }
+
+        validateFieldAndFile(file, fieldName);
 
         try {
             RegistrationFiles registrationFiles = cacheUtilService.getRegistrationFiles(transactionId);
