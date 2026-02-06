@@ -34,13 +34,18 @@ CREATE TABLE esignet.client_detail(
   claims character varying NOT NULL,
   acr_values character varying NOT NULL,
   public_key jsonb NOT NULL,
+  public_key_hash varchar(128) NOT NULL,
+	enc_public_key varchar(1024),
+	enc_public_key_hash varchar(128),
+	enc_public_key_cert varchar(4000),
   grant_types character varying NOT NULL,
   auth_methods character varying NOT NULL,
   status character varying(20) NOT NULL,
   additional_config jsonb,
   cr_dtimes timestamp NOT NULL,
   upd_dtimes timestamp,
-  CONSTRAINT pk_clntdtl_id PRIMARY KEY (id)
+  CONSTRAINT pk_clntdtl_id PRIMARY KEY (id),
+	CONSTRAINT uk_clntdtl_public_key_hash UNIQUE (public_key_hash)
 );
 
 CREATE UNIQUE INDEX unique_n_value ON esignet.client_detail ((public_key->>'n'));
