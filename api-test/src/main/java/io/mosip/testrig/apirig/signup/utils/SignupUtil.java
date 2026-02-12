@@ -1,12 +1,15 @@
 package io.mosip.testrig.apirig.signup.utils;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -24,6 +27,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.testng.SkipException;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -49,7 +56,7 @@ import io.mosip.testrig.apirig.utils.KeycloakUserManager;
 import io.mosip.testrig.apirig.utils.RestClient;
 import io.mosip.testrig.apirig.utils.SecurityXSSException;
 import io.mosip.testrig.apirig.utils.SkipTestCaseHandler;
-import io.restassured.RestAssured;
+import io.mosip.testrig.apirig.utils.Translator;
 import io.restassured.response.Response;
 
 public class SignupUtil extends AdminTestUtil {
@@ -1579,6 +1586,239 @@ public class SignupUtil extends AdminTestUtil {
 
 		return testCaseDTO;
 	}
+	
+	public static String generateHbsForRegisterUserRequest() {
+		try {
 
+			kernelAuthLib = new KernelAuthentication();
+			String token = kernelAuthLib.getTokenByRole(GlobalConstants.RESIDENT);
+			String url = SignupConstants.SIGNUP_BASE_URL
+					+ props.getProperty(SignupConstants.SIGNUP_REGISTRATION_UI_SPEC);
+
+			Response response = RestClient.getRequestWithCookie(url, MediaType.APPLICATION_JSON,
+					MediaType.APPLICATION_JSON, GlobalConstants.AUTHORIZATION, token);
+
+			ObjectMapper mapper = new ObjectMapper();
+			JsonNode root = mapper.readTree(response.asString());
+
+			JsonNode responseNode = root.path(GlobalConstants.RESPONSE);
+			JsonNode schemaNode = responseNode.path(SignupConstants.SCHEMA);
+			if (!schemaNode.isArray()) {
+				throw new RuntimeException("UI spec response missing 'schema' array");
+			}
+			ArrayNode fields = (ArrayNode) schemaNode;
+			JsonNode allowedValues = responseNode.path(SignupConstants.ALLOWED_VALUES);
+
+			ObjectNode finalBody = mapper.createObjectNode();
+			finalBody.put(SignupConstants.REQUEST_TIME, SignupConstants.REQUEST_TIME_PLACEHOLDER);
+			finalBody.put(GlobalConstants.VERIFIEDTRANSACTIONID, SignupConstants.VERIFIED_TRANSACTION_ID_PLACEHOLDER);
+
+			ObjectNode request = finalBody.putObject(GlobalConstants.REQUEST);
+			ObjectNode userInfo = request.putObject(SignupConstants.USER_INFO);
+
+			for (JsonNode field : fields) {
+
+				String id = field.path(SignupConstants.ID).asText();
+				String controlType = field.path(SignupConstants.CONTROL_TYPE).asText();
+				String type = field.path(SignupConstants.TYPE).asText();
+				String subType = field.path(SignupConstants.SUB_TYPE).asText(null);
+				boolean disabled = field.path(SignupConstants.DISABLED).asBoolean(false);
+
+				// Skip disabled fields unless backend-controlled
+				if (disabled && !isBackendRequiredField(id, allowedValues)) {
+					continue;
+				}
+
+				// SIMPLE TYPE (Multilingual)
+				if (GlobalConstants.SIMPLETYPE.equals(type)) {
+
+					ArrayNode arr = userInfo.putArray(id);
+					List<String> languageList = new ArrayList<>(signupSupportedLanguage);
+
+					boolean isMultilingualNameField = field.has(SignupConstants.VALIDATORS_STRING)
+							&& field.get(SignupConstants.VALIDATORS_STRING).size() > 1;
+
+					for (String lang : languageList) {
+
+						if (lang == null || lang.isEmpty())
+							continue;
+
+						ObjectNode each = arr.addObject();
+						each.put(GlobalConstants.LANGUAGE, lang);
+
+						// If radio with subType
+						if (subType != null && allowedValues.has(subType)) {
+
+							JsonNode radioValues = allowedValues.path(subType);
+							if (!radioValues.fieldNames().hasNext())
+								continue;
+							String selectedKey = radioValues.fieldNames().next();
+							JsonNode langObject = radioValues.path(selectedKey);
+
+							if (langObject.has(lang)) {
+								each.put(GlobalConstants.VALUE, langObject.path(lang).asText());
+							} else {
+								each.put(GlobalConstants.VALUE, langObject.fields().next().getValue().asText());
+							}
+
+						} else if (isMultilingualNameField) {
+
+							String translatedName;
+
+							if (SignupConstants.KHM.equals(lang)) {
+								translatedName = SignupConstants.AUTOMATION_USER_KHM;
+							} else {
+								translatedName = Translator.translate(lang, SignupConstants.AUTOMATION_USER);
+							}
+
+							each.put(GlobalConstants.VALUE, translatedName);
+
+						} else if (field.has(SignupConstants.VALIDATORS_STRING)
+								&& field.get(SignupConstants.VALIDATORS_STRING).size() > 0) {
+
+							String regex = field.get(SignupConstants.VALIDATORS_STRING).get(0)
+									.path(SignupConstants.REGEX).asText(null);
+
+							if (regex != null) {
+								each.put(GlobalConstants.VALUE, generateFromRegex(regex));
+							} else {
+								each.put(GlobalConstants.VALUE, SignupConstants.TEST_AUTOMATION);
+							}
+
+						} else {
+							each.put(GlobalConstants.VALUE, SignupConstants.TEST_AUTOMATION);
+						}
+					}
+					continue;
+				}
+
+				// Regex-based value (textarea / textbox)
+				if (field.has(SignupConstants.VALIDATORS_STRING)
+						&& field.get(SignupConstants.VALIDATORS_STRING).size() > 0) {
+					String regex = field.get(SignupConstants.VALIDATORS_STRING).get(0).path(SignupConstants.REGEX)
+							.asText(null);
+
+					if (regex != null) {
+						if (regex.contains(SignupConstants.AT_SYMBOL)) {
+							userInfo.put(id, SignupConstants.TEST_AUTOMATION_EMAIL);
+						} else {
+							userInfo.put(id, generateFromRegex(regex));
+						}
+						continue;
+					}
+				}
+
+				// Control-type based fallback
+				switch (controlType) {
+
+				case SignupConstants.PHONE_STRING:
+					userInfo.put(id, SignupConstants.PHONE_PLACEHOLDER);
+					request.put(GlobalConstants.USERNAME, SignupConstants.USERNAME_PLACEHOLDER);
+					break;
+
+				case GlobalConstants.PASSWORD:
+					userInfo.put(id, PASSWORD_FOR_ADDIDENTITY_AND_REGISTRATION);
+					request.put(GlobalConstants.PASSWORD, PASSWORD_FOR_ADDIDENTITY_AND_REGISTRATION);
+					break;
+
+				case SignupConstants.DROPDOWN:
+					if (allowedValues.has(id)) {
+						Iterator<String> names = allowedValues.path(id).fieldNames();
+						if (names.hasNext()) {
+							userInfo.put(id, names.next());
+						}
+					}
+					break;
+
+				case SignupConstants.RADIO:
+					if (subType != null && allowedValues.has(subType)) {
+
+						JsonNode radioValues = allowedValues.path(subType);
+						String selectedKey = radioValues.fieldNames().next();
+						JsonNode langObject = radioValues.path(selectedKey);
+
+						ArrayNode arr = userInfo.putArray(id);
+
+						Iterator<Map.Entry<String, JsonNode>> fieldsIter = langObject.fields();
+
+						while (fieldsIter.hasNext()) {
+							Map.Entry<String, JsonNode> entry = fieldsIter.next();
+
+							arr.addObject().put(GlobalConstants.LANGUAGE, entry.getKey()).put(GlobalConstants.VALUE,
+									entry.getValue().asText());
+						}
+					}
+					break;
+
+				case SignupConstants.TEXTAREA:
+					userInfo.put(id, SignupConstants.TEST_AUTOMATION);
+					break;
+
+				case SignupConstants.DATE:
+					String format = field.path(SignupConstants.FORMAT).asText(SignupConstants.YEAR_MONTH_DAY);
+					try {
+						userInfo.put(id, LocalDate.now().minusYears(18).format(DateTimeFormatter.ofPattern(format)));
+					} catch (IllegalArgumentException e) {
+						logger.warn("Invalid date format from UI spec: " + format + ", falling back to yyyy-MM-dd");
+						userInfo.put(id, LocalDate.now().minusYears(18)
+								.format(DateTimeFormatter.ofPattern(SignupConstants.YEAR_MONTH_DAY)));
+					}
+					break;
+
+				case SignupConstants.CHECKBOX:
+					userInfo.put(id, true);
+					break;
+
+				case SignupConstants.FILEUPLOAD:
+				case SignupConstants.PHOTO:
+					// Ignore (handled separately by upload endpoint)
+					break;
+
+				case SignupConstants.TEXTBOX:
+					if (allowedValues.has(id)) {
+						userInfo.put(id, allowedValues.path(id).asText());
+					} else {
+						userInfo.put(id, SignupConstants.TEST_AUTOMATION);
+					}
+					break;
+
+				default:
+					userInfo.put(id, SignupConstants.TEST_AUTOMATION);
+				}
+			}
+
+			request.put(SignupConstants.CONSENT, SignupConstants.CONSENT_PLACEHOLDER);
+			request.put(SignupConstants.LOCALE, SignupConstants.ENG);
+
+			if (currentTestCaseName.contains("_SName_Valid")) {
+				JsonNode fullNameNode = userInfo.get(GlobalConstants.FULLNAME);
+				if (fullNameNode != null) {
+					CertsUtil.addCertificateToCache(currentTestCaseName + "_$REGISTEREDUSERFULLNAME$",
+							fullNameNode.toString());
+				} else {
+					logger.warn("fullName field not found in userInfo for caching");
+				}
+
+			}
+
+			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(finalBody);
+
+		} catch (Exception e) {
+			logger.error("Failed to generate HBS from UI spec", e);
+			throw new RuntimeException("Failed to generate HBS from UI spec", e);
+		}
+	}
+	
+	private static String generateFromRegex(String regex) {
+		try {
+			return genStringAsperRegex(regex); // Generex method
+		} catch (Exception e) {
+			return SignupConstants.TEST_AUTOMATION;
+		}
+	}
+
+	private static boolean isBackendRequiredField(String id, JsonNode allowedValues) {
+		return allowedValues.has(id) || "phone".equals(id);
+	}
 	
 }
