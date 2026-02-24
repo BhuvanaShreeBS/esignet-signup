@@ -5,6 +5,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import base.BaseTest;
+
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.Base64;
@@ -54,10 +56,15 @@ public class ClaimsUtil {
 	}
 
 	public static String extractUiLocalesFromUrl() {
+		if (BaseTest.getDriver() == null) {
+			logger.info("Driver not initialized; ui_locales not available");
+			return null;
+		}
 		String url = BaseTest.getDriver().getCurrentUrl();
 
 		if (url != null && url.contains("ui_locales=")) {
-			return url.split("ui_locales=")[1].split("[&#]")[0];
+			String raw = url.split("ui_locales=", 2)[1].split("[&#]", 2)[0];
+			return URLDecoder.decode(raw, StandardCharsets.UTF_8);
 		}
 		return null;
 	}

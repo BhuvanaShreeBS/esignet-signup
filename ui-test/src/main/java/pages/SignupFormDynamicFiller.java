@@ -188,9 +188,19 @@ public class SignupFormDynamicFiller {
 	}
 
 	private void selectDocumentType(String fieldId) {
-		WebElement dropdown = driver.findElement(By.xpath("//*[contains(@data-field-id,'" + fieldId + "')]//select"));
-		Select select = new Select(dropdown);
-		select.selectByIndex(1);
-		logger.info("Selected first Document Type for " + fieldId);
+		List<WebElement> dropdowns = driver
+				.findElements(By.xpath("//*[contains(@data-field-id,'" + fieldId + "')]//select"));
+		if (dropdowns.isEmpty()) {
+			logger.info("No Document Type dropdown found for " + fieldId);
+			return;
+		}
+		Select select = new Select(dropdowns.get(0));
+		List<WebElement> options = select.getOptions();
+		if (options.size() > 1) {
+			select.selectByIndex(1);
+		} else if (!options.isEmpty()) {
+			select.selectByIndex(0);
+		}
+		logger.info("Selected Document Type for " + fieldId);
 	}
 }

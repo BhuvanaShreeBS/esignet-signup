@@ -328,8 +328,10 @@ public class EsignetUtil extends AdminTestUtil {
 							if (validator.has("langCode")) {
 								if (langCode.equalsIgnoreCase(validator.optString("langCode"))) {
 									String regex = validator.optString("regex", null);
-									logger.info("Regex for " + fieldId + " in " + langCode + ": " + regex);
-									return regex;
+									if (regex != null && !regex.isEmpty()) {
+										logger.info("Regex for " + fieldId + " in " + langCode + ": " + regex);
+										return regex;
+									}
 								}
 							} else {
 								String regex = validator.optString("regex", null);
@@ -339,7 +341,11 @@ public class EsignetUtil extends AdminTestUtil {
 							}
 						}
 						if (!regexList.isEmpty()) {
-							String combinedRegex = String.join(" && ", regexList);
+							StringBuilder combined = new StringBuilder();
+							for (String r : regexList) {
+								combined.append("(?=").append(r).append(")");
+							}
+							String combinedRegex = combined.append(".*").toString();
 							logger.info("Combined Regex for " + fieldId + ": " + combinedRegex);
 							return combinedRegex;
 						}
