@@ -320,13 +320,28 @@ public class EsignetUtil extends AdminTestUtil {
 						if (validators == null)
 							continue;
 
+						List<String> regexList = new ArrayList<>();
+
 						for (int j = 0; j < validators.length(); j++) {
 							JSONObject validator = validators.getJSONObject(j);
-							if (langCode.equals(validator.optString("langCode"))) {
+
+							if (validator.has("langCode")) {
+								if (langCode.equalsIgnoreCase(validator.optString("langCode"))) {
+									String regex = validator.optString("regex", null);
+									logger.info("Regex for " + fieldId + " in " + langCode + ": " + regex);
+									return regex;
+								}
+							} else {
 								String regex = validator.optString("regex", null);
-								logger.info("Regex for " + fieldId + " in " + langCode + ": " + regex);
-								return regex;
+								if (regex != null && !regex.isEmpty()) {
+									regexList.add(regex);
+								}
 							}
+						}
+						if (!regexList.isEmpty()) {
+							String combinedRegex = String.join(" && ", regexList);
+							logger.info("Combined Regex for " + fieldId + ": " + combinedRegex);
+							return combinedRegex;
 						}
 					}
 				}
@@ -505,7 +520,7 @@ public class EsignetUtil extends AdminTestUtil {
 	}
 
 	public static String getMoreThanMaxDigits() {
-		return generateMobileNumberFromRegex() + "1";
+		return generateMobileNumberFromRegex() + "10";
 	}
 
 	public static String getAlphaNumeric() {
@@ -603,7 +618,7 @@ public class EsignetUtil extends AdminTestUtil {
 			chars.append("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 		if (regex.contains("a-z"))
 			chars.append("abcdefghijklmnopqrstuvwxyz");
-		if (regex.contains("0-9"))
+		if (regex.contains("0-9") || regex.contains("\\d"))
 			chars.append("0123456789");
 
 		if (chars.length() == 0) {
@@ -659,17 +674,17 @@ public class EsignetUtil extends AdminTestUtil {
 
 		return fieldsMap;
 	}
-	
+
 	public static String getRandomDOB() {
-	    LocalDate today = LocalDate.now();
-	    LocalDate earliest = today.minusYears(120);
-	    long daysRange = ChronoUnit.DAYS.between(earliest, today);
+		LocalDate today = LocalDate.now();
+		LocalDate earliest = today.minusYears(120);
+		long daysRange = ChronoUnit.DAYS.between(earliest, today);
 
-	    long randomDays = ThreadLocalRandom.current().nextLong(daysRange);
-	    LocalDate dob = earliest.plusDays(randomDays);
+		long randomDays = ThreadLocalRandom.current().nextLong(daysRange);
+		LocalDate dob = earliest.plusDays(randomDays);
 
-	    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
-	    return dob.format(formatter);
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+		return dob.format(formatter);
 	}
 
 }

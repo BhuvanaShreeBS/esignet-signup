@@ -159,7 +159,38 @@ public class SignupFormDynamicFiller {
 				}
 				continue;
 			}
+
+			if ("fileupload".equalsIgnoreCase(controlType)) {
+				selectDocumentType(fieldId);
+				uploadFile(fieldId, matchingElements);
+				continue;
+			}
 		}
 	}
 
+	private void uploadFile(String fieldId, List<WebElement> matchingElements) {
+		String basePath = System.getProperty("user.dir") + "/src/main/resources/config/";
+		String filePath;
+
+		if (fieldId.toLowerCase().contains("photo")) {
+			filePath = basePath + "Photo.jpg";
+		} else {
+			filePath = basePath + "Passport.pdf";
+		}
+		WebElement uploadInput = driver.findElement(
+				By.xpath("//input[@type='file' and (@id='" + fieldId + "' or @data-field-id='" + fieldId + "')]"));
+
+		((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'});", uploadInput);
+
+		uploadInput.sendKeys(filePath);
+
+		logger.info("Uploaded file for " + fieldId + " → " + filePath);
+	}
+
+	private void selectDocumentType(String fieldId) {
+		WebElement dropdown = driver.findElement(By.xpath("//*[contains(@data-field-id,'" + fieldId + "')]//select"));
+		Select select = new Select(dropdown);
+		select.selectByIndex(1);
+		logger.info("Selected first Document Type for " + fieldId);
+	}
 }
