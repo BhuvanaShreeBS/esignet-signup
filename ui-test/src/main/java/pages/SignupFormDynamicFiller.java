@@ -176,32 +176,29 @@ public class SignupFormDynamicFiller {
 	}
 
 	private void uploadFile(String fieldId, List<WebElement> matchingElements) throws IOException {
-		{
+		String fileName = fieldId.toLowerCase().contains("photo") ? "Photo.jpg" : "Passport.pdf";
 
-			String fileName = fieldId.toLowerCase().contains("photo") ? "Photo.jpg" : "Passport.pdf";
+		File tempFile = File.createTempFile("upload-", "-" + fileName);
+		tempFile.deleteOnExit();
 
-			File tempFile = File.createTempFile("upload-", "-" + fileName);
-			tempFile.deleteOnExit();
-
-			String resourcePath = "config/" + fileName;
-			try (InputStream resourceStream = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
-				if (resourceStream == null) {
-					throw new IOException("Upload resource not found: " + resourcePath);
-				}
-				Files.copy(resourceStream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+		String resourcePath = "config/" + fileName;
+		try (InputStream resourceStream = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+			if (resourceStream == null) {
+				throw new IOException("Upload resource not found: " + resourcePath);
 			}
-
-			if (driver instanceof RemoteWebDriver) {
-				((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
-			}
-
-			WebElement uploadInput = driver.findElement(By.xpath("//input[@type='file' and (contains(@id,'" + fieldId
-					+ "') or contains(@data-field-id,'" + fieldId + "'))]"));
-
-			uploadInput.sendKeys(tempFile.getAbsolutePath());
-
-			logger.info("Uploaded file for " + fieldId);
+			Files.copy(resourceStream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 		}
+
+		if (driver instanceof RemoteWebDriver) {
+			((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
+		}
+
+		WebElement uploadInput = driver.findElement(By.xpath("//input[@type='file' and (contains(@id,'" + fieldId
+				+ "') or contains(@data-field-id,'" + fieldId + "'))]"));
+
+		uploadInput.sendKeys(tempFile.getAbsolutePath());
+
+		logger.info("Uploaded file for " + fieldId);
 	}
 
 	private void selectDocumentType(String fieldId) {
