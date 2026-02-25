@@ -2,13 +2,19 @@ package pages;
 
 import org.apache.log4j.Logger;
 import org.openqa.selenium.*;
+import org.openqa.selenium.remote.LocalFileDetector;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.Select;
 
 import utils.EsignetUtil;
 import utils.EsignetUtil.RegisteredDetails;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 
 public class SignupFormDynamicFiller {
@@ -22,7 +28,7 @@ public class SignupFormDynamicFiller {
 		registrationPage = new RegistrationPage(driver);
 	}
 
-	public void fillFormFromUiSpec(Map<String, Map<String, Object>> uiSpecFields) {
+	public void fillFormFromUiSpec(Map<String, Map<String, Object>> uiSpecFields) throws Exception {
 
 		for (String fieldId : uiSpecFields.keySet()) {
 
@@ -168,23 +174,26 @@ public class SignupFormDynamicFiller {
 		}
 	}
 
-	private void uploadFile(String fieldId, List<WebElement> matchingElements) {
-		String basePath = System.getProperty("user.dir") + "/src/main/resources/config/";
-		String filePath;
+	private void uploadFile(String fieldId, List<WebElement> matchingElements) throws Exception {
 
-		if (fieldId.toLowerCase().contains("photo")) {
-			filePath = basePath + "Photo.jpg";
-		} else {
-			filePath = basePath + "Passport.pdf";
+		String fileName = fieldId.toLowerCase().contains("photo") ? "Photo.jpg" : "Passport.pdf";
+
+		File tempFile = File.createTempFile("upload-", "-" + fileName);
+		tempFile.deleteOnExit();
+
+		Files.copy(Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("config/" + fileName)),
+				tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+		if (driver instanceof RemoteWebDriver) {
+			((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
 		}
-		WebElement uploadInput = driver.findElement(
-				By.xpath("//input[@type='file' and (@id='" + fieldId + "' or @data-field-id='" + fieldId + "')]"));
 
-		((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'});", uploadInput);
+		WebElement uploadInput = driver.findElement(By.xpath("//input[@type='file' and (contains(@id,'" + fieldId
+				+ "') or contains(@data-field-id,'" + fieldId + "'))]"));
 
-		uploadInput.sendKeys(filePath);
+		uploadInput.sendKeys(tempFile.getAbsolutePath());
 
-		logger.info("Uploaded file for " + fieldId + " → " + filePath);
+		logger.info("Uploaded file for " + fieldId);
 	}
 
 	private void selectDocumentType(String fieldId) {

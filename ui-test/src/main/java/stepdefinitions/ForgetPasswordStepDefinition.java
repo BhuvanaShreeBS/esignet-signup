@@ -3,15 +3,8 @@ package stepdefinitions;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.time.Duration;
-
 import org.apache.log4j.Logger;
-import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.WindowType;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 import io.cucumber.java.en.When;
 import io.mosip.testrig.apirig.testrunner.AllNotificationListner;
@@ -23,9 +16,7 @@ import io.cucumber.java.en.Then;
 import pages.ForgetPasswordPage;
 import pages.LoginOptionsPage;
 import pages.SignUpPage;
-import utils.BaseTestUtil;
 import utils.EsignetUtil;
-import utils.MultiLanguageUtil;
 import utils.EsignetUtil.RegisteredDetails;
 
 public class ForgetPasswordStepDefinition {
