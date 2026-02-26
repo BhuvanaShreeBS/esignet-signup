@@ -189,9 +189,9 @@ public class SignupFormDynamicFiller {
 			Files.copy(resourceStream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 		}
 
-		if (driver instanceof RemoteWebDriver) {
-			((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
-		}
+		if (driver.getClass().getName().contains("RemoteWebDriver")) {
+	        ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
+	    }
 
 		WebElement uploadInput = driver.findElement(By.xpath("//input[@type='file' and (contains(@id,'" + fieldId
 				+ "') or contains(@data-field-id,'" + fieldId + "'))]"));
