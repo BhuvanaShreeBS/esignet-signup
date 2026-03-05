@@ -1,8 +1,12 @@
 package utils;
 
+import org.apache.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import base.BaseTest;
+
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.Base64;
@@ -10,19 +14,20 @@ import java.util.Base64;
 public class ClaimsUtil {
 
 	private static JSONObject root;
+	private static final Logger logger = Logger.getLogger(ClaimsUtil.class);
 
 	// Decode and parse the base64 part from the URL (after #)
 	public static void parseFromUrl(String url) {
 		try {
 			if (url == null || !url.contains("#")) {
-				System.out.println("No encoded part found in URL: " + url);
+				logger.info("No encoded part found in URL: " + url);
 				root = null;
 				return;
 			}
 
 			String base64Part = url.substring(url.indexOf('#') + 1).trim();
 			if (base64Part.isEmpty()) {
-				System.out.println("Empty encoded part in URL");
+				logger.info("Empty encoded part in URL");
 				root = null;
 				return;
 			}
@@ -31,9 +36,9 @@ public class ClaimsUtil {
 			String jsonString = new String(decoded, StandardCharsets.UTF_8);
 			root = new JSONObject(jsonString);
 
-			System.out.println("Decoded URL JSON: " + root.toString());
+			logger.info("Decoded URL JSON: " + root.toString());
 		} catch (Exception e) {
-			System.out.println("Failed to decode URL: " + e.getMessage());
+			logger.info("Failed to decode URL: " + e.getMessage());
 			root = null;
 		}
 	}
@@ -50,20 +55,22 @@ public class ClaimsUtil {
 		return normalizeList(toStringList(root.optJSONArray("voluntaryClaims")));
 	}
 
+	public static String extractUiLocalesFromUrl() {
+		if (BaseTest.getDriver() == null) {
+			logger.info("Driver not initialized; ui_locales not available");
+			return null;
+		}
+		String url = BaseTest.getDriver().getCurrentUrl();
+
+		if (url != null && url.contains("ui_locales=")) {
+			String raw = url.split("ui_locales=", 2)[1].split("[&#]", 2)[0];
+			return URLDecoder.decode(raw, StandardCharsets.UTF_8);
+		}
+		return null;
+	}
+
 	public static String getDefaultLanguage() {
-		if (root == null)
-			return null;
-		JSONObject configs = root.optJSONObject("configs");
-		if (configs == null)
-			return null;
-		JSONObject kbi = configs.optJSONObject("auth.factor.kbi.field-details");
-		if (kbi == null)
-			return null;
-		JSONObject lang = kbi.optJSONObject("language");
-		if (lang == null)
-			return null;
-		JSONArray mandatory = lang.optJSONArray("mandatory");
-		return (mandatory != null && mandatory.length() > 0) ? mandatory.optString(0) : null;
+		return extractUiLocalesFromUrl();
 	}
 
 	private static List<String> toStringList(JSONArray arr) {
