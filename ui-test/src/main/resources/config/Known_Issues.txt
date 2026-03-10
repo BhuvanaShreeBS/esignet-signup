@@ -4,6 +4,8 @@
 ES-2853------Verify the forget password options for otp
 ES-2853------Verify the reset password options
 ES-2850------Verify the Registration process and Login Flow
+ES-2850------Verify welcome message when full name is not consented
+ES-2850------Verifying the testCases that validates mobile number field
 ES-2687------Signup and Mobile Number Registration
 ES-2853------Completing Registration Process
 ES-2853------OTP input acceptance and Verify button state

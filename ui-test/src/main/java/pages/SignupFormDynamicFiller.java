@@ -2,11 +2,18 @@ package pages;
 
 import org.apache.log4j.Logger;
 import org.openqa.selenium.*;
+import org.openqa.selenium.remote.LocalFileDetector;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.Select;
 
 import utils.EsignetUtil;
 import utils.EsignetUtil.RegisteredDetails;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -22,7 +29,7 @@ public class SignupFormDynamicFiller {
 		registrationPage = new RegistrationPage(driver);
 	}
 
-	public void fillFormFromUiSpec(Map<String, Map<String, Object>> uiSpecFields) {
+	public void fillFormFromUiSpec(Map<String, Map<String, Object>> uiSpecFields) throws Exception {
 
 		for (String fieldId : uiSpecFields.keySet()) {
 
@@ -159,7 +166,55 @@ public class SignupFormDynamicFiller {
 				}
 				continue;
 			}
+
+			if ("fileupload".equalsIgnoreCase(controlType)) {
+				selectDocumentType(fieldId);
+				uploadFile(fieldId, matchingElements);
+				continue;
+			}
 		}
 	}
 
+	private void uploadFile(String fieldId, List<WebElement> matchingElements) throws IOException {
+		String fileName = fieldId.toLowerCase().contains("photo") ? "Photo.jpg" : "Passport.pdf";
+
+		File tempFile = File.createTempFile("upload-", "-" + fileName);
+		tempFile.deleteOnExit();
+
+		String resourcePath = "config/" + fileName;
+		try (InputStream resourceStream = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+			if (resourceStream == null) {
+				throw new IOException("Upload resource not found: " + resourcePath);
+			}
+			Files.copy(resourceStream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+		}
+
+		if (driver.getClass().getName().contains("RemoteWebDriver")) {
+	        ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
+	    }
+
+		WebElement uploadInput = driver.findElement(By.xpath("//input[@type='file' and (contains(@id,'" + fieldId
+				+ "') or contains(@data-field-id,'" + fieldId + "'))]"));
+
+		uploadInput.sendKeys(tempFile.getAbsolutePath());
+
+		logger.info("Uploaded file for " + fieldId);
+	}
+
+	private void selectDocumentType(String fieldId) {
+		List<WebElement> dropdowns = driver
+				.findElements(By.xpath("//*[contains(@data-field-id,'" + fieldId + "')]//select"));
+		if (dropdowns.isEmpty()) {
+			logger.info("No Document Type dropdown found for " + fieldId);
+			return;
+		}
+		Select select = new Select(dropdowns.get(0));
+		List<WebElement> options = select.getOptions();
+		if (options.size() > 1) {
+			select.selectByIndex(1);
+		} else if (!options.isEmpty()) {
+			select.selectByIndex(0);
+		}
+		logger.info("Selected Document Type for " + fieldId);
+	}
 }

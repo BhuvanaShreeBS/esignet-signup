@@ -4,15 +4,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.time.Duration;
 import java.util.Map;
 
-import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.WindowType;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 
 import org.apache.log4j.Logger;
@@ -28,8 +22,6 @@ import pages.LoginOptionsPage;
 import pages.RegistrationPage;
 import pages.SignUpPage;
 import pages.SignupFormDynamicFiller;
-import utils.BaseTestUtil;
-import utils.ClaimsUtil;
 import utils.EsignetConfigManager;
 import utils.EsignetUtil;
 import utils.MultiLanguageUtil;
@@ -906,7 +898,7 @@ public class SignUpStepDef {
 	}
 
 	@When("user fills the signup form using UI specification")
-	public void userFillsSignupFormUsingUiSpecification() {
+	public void userFillsSignupFormUsingUiSpecification() throws Exception {
 		Map<String, Map<String, Object>> uiSpecFields = EsignetUtil.getUiSpecFields();
 		formFiller.fillFormFromUiSpec(uiSpecFields);
 	}
