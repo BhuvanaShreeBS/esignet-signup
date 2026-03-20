@@ -4,6 +4,7 @@ import { Trans, useTranslation } from "react-i18next";
 import PinInput from "react-pin-input";
 import { useTimer } from "react-timer-hook";
 
+import { criticalErrorsToPopup } from "~constants/criticalErrors";
 import { ResendAttempt } from "~components/resend-attempt";
 import { ActionMessage } from "~components/ui/action-message";
 import { Button } from "~components/ui/button";
@@ -18,8 +19,8 @@ import {
   StepHeader,
   StepTitle,
 } from "~components/ui/step";
-import { getLocale } from "~utils/language";
-import { maskPhoneNumber } from "~utils/phone";
+import { getThreeLetterLocale } from "~utils/locale";
+import { maskData } from "~utils/mask";
 import { convertTime, getTimeoutTime } from "~utils/timer";
 import {
   useGenerateChallenge,
@@ -31,7 +32,6 @@ import {
   SettingsDto,
   VerifyChallengeRequestDto,
 } from "~typings/types";
-import { langCodeMappingSelector, useLanguageStore } from "~/useLanguageStore";
 
 import { SignUpForm, signUpFormDefaultValues } from "../SignUpPage";
 import {
@@ -43,9 +43,10 @@ import {
   setVerificationChallengeErrorSelector,
   SignUpStep,
   stepSelector,
+  uiSpecResponseSelector,
+  userDataSelector,
   useSignUpStore,
 } from "../useSignUpStore";
-import { criticalErrorsToPopup } from "~constants/criticalErrors";
 
 interface OtpProps {
   settings: SettingsDto;
@@ -64,7 +65,9 @@ export const Otp = ({ methods, settings }: OtpProps) => {
     setResendOtp,
     resendAttempts,
     setResendAttempts,
-    setVerificationChallengeError
+    setVerificationChallengeError,
+    userData,
+    uiSpecResponse,
   } = useSignUpStore(
     useCallback(
       (state) => ({
@@ -74,19 +77,15 @@ export const Otp = ({ methods, settings }: OtpProps) => {
         setResendOtp: setResendOtpSelector(state),
         resendAttempts: resendAttemptsSelector(state),
         setResendAttempts: setResendAttemptsSelector(state),
-        setVerificationChallengeError: setVerificationChallengeErrorSelector(state)
+        setVerificationChallengeError:
+          setVerificationChallengeErrorSelector(state),
+        userData: userDataSelector(state),
+        uiSpecResponse: uiSpecResponseSelector(state),
       }),
       []
     )
   );
-  const { langCodeMapping } = useLanguageStore(
-    useCallback(
-      (state) => ({
-        langCodeMapping: langCodeMappingSelector(state),
-      }),
-      []
-    )
-  );
+
   const { trigger, reset, resetField, formState } = methods;
   const [captchaRequired, setCaptchaRequired] = useState<boolean>(false);
   const { generateChallengeMutation } = useGenerateChallenge();
@@ -172,7 +171,7 @@ export const Otp = ({ methods, settings }: OtpProps) => {
   const handleResendOtp = useCallback(
     (e: any) => {
       e.preventDefault();
-      if (settings?.response.configs && resendAttempts > 0) {
+      if (settings?.response.configs && resendAttempts > 0 && userData) {
         setChallengeVerificationError(null);
         if (captchaRequired) {
           redirectBack(true);
@@ -180,11 +179,13 @@ export const Otp = ({ methods, settings }: OtpProps) => {
           const generateChallengeRequestDto: GenerateChallengeRequestDto = {
             requestTime: new Date().toISOString(),
             request: {
-              identifier: `${
-                settings.response.configs["identifier.prefix"]
-                }${getValues("phone")}`,
-              captchaToken: getValues("captchaToken"),
-              locale: getLocale(i18n.language, langCodeMapping),
+              identifier:
+                userData[settings.response.configs["identifier.name"]],
+              captchaToken: userData.recaptchaToken,
+              locale: getThreeLetterLocale(
+                i18n.language,
+                uiSpecResponse?.language?.langCodeMap
+              ),
               regenerateChallenge: true,
               purpose: "REGISTRATION",
             },
@@ -248,15 +249,16 @@ export const Otp = ({ methods, settings }: OtpProps) => {
 
       const isStepValid = await trigger();
 
-      if (isStepValid) {
+      if (isStepValid && userData) {
         setChallengeVerificationError(null);
+
+        const identifier =
+          userData[settings.response.configs["identifier.name"]];
 
         const verifyChallengeRequestDto: VerifyChallengeRequestDto = {
           requestTime: new Date().toISOString(),
           request: {
-            identifier: `${
-              settings.response.configs["identifier.prefix"]
-              }${getValues("phone")}`,
+            identifier: identifier,
             challengeInfo: [
               {
                 challenge: getValues("otp"),
@@ -273,7 +275,7 @@ export const Otp = ({ methods, settings }: OtpProps) => {
               if (
                 [
                   "already-registered",
-                  "identifier_already_registered"
+                  "identifier_already_registered",
                 ].includes(errors[0].errorCode)
               ) {
                 setVerificationChallengeError(errors[0]);
@@ -286,7 +288,7 @@ export const Otp = ({ methods, settings }: OtpProps) => {
             }
 
             if (errors.length === 0) {
-              setVerificationChallengeError(null)
+              setVerificationChallengeError(null);
               setStep(SignUpStep.PhoneStatus);
             }
           },
@@ -316,24 +318,37 @@ export const Otp = ({ methods, settings }: OtpProps) => {
             className="absolute left-0"
             aria-label="Go back"
           >
-            <Icons.back
-              id="back-button"
-              name="back-button"
-            />
+            <Icons.back id="back-button" name="back-button" />
           </button>
           <StepTitle className="text-center text-[22px] font-semibold">
             {t("otp_header")}
           </StepTitle>
         </div>
         <StepDescription className="w-full pt-2 tracking-normal">
-          <div className="text-muted-neutral-gray">
-            {t("otp_subheader", {
-              no_of_digit: settings?.response.configs["otp.length"],
-            })}
-          </div>
+          {userData && (
+            <div className="text-muted-neutral-gray">
+              {t("otp_subheader", {
+                no_of_digit: settings?.response.configs["otp.length"],
+                identifier: userData[
+                  settings.response.configs["identifier.name"]
+                ].includes("@")
+                  ? "email"
+                  : "number",
+              })}
+            </div>
+          )}
           <div className="font-medium text-muted-dark-gray">
-            <span>{settings.response.configs["identifier.prefix"]}</span>{" "}
-            <span>{maskPhoneNumber(getValues("phone"), 4)}</span>
+            <span>{}</span>{" "}
+            <span>
+              {userData && (
+                <span>
+                  {maskData(
+                    `${userData[settings.response.configs["identifier.name"]]}`,
+                    4
+                  )}
+                </span>
+              )}
+            </span>
           </div>
         </StepDescription>
       </StepHeader>
@@ -424,13 +439,13 @@ export const Otp = ({ methods, settings }: OtpProps) => {
             </Button>
             {resendAttempts !==
               settings.response.configs["resend.attempts"] && (
-                <ResendAttempt
-                  currentAttempts={resendAttempts}
-                  totalAttempts={settings.response.configs["resend.attempts"]}
-                  attemptRetryAfter={settings.response.configs["otp.blocked"]}
-                  showRetry={resendAttempts === 0 && resendOtpTotalSecs === 0}
-                />
-              )}
+              <ResendAttempt
+                currentAttempts={resendAttempts}
+                totalAttempts={settings.response.configs["resend.attempts"]}
+                attemptRetryAfter={settings.response.configs["otp.blocked"]}
+                showRetry={resendAttempts === 0 && resendOtpTotalSecs === 0}
+              />
+            )}
             {resendAttempts === 0 && resendOtpTotalSecs === 0 && (
               <Button
                 id="landing-page-button"
