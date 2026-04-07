@@ -74,6 +74,8 @@ These configurations need to be added as part of the eSignet service deployment 
 - **MOSIP_ESIGNET_CAPTCHA_REQUIRED**: (empty)
 - **uinGenerationProcessingDelayTimeInMilliSeconds**: 600000
 - **uinGenMaxLoopCount**: 20
+-  Automation scripts rely on **MOSIP_SIGNUP_IDENTIFIER_REGEX** for input validation during signup flows.
+Ensure that **MOSIP_SIGNUP_IDENTIFIER_REGEX** is explicitly defined in the configuration.
 
 These configurations need to be added as part of the Signup service deployment to support the API Test Rig:
 
