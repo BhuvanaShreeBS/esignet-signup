@@ -12,6 +12,7 @@ import {
   StepHeader,
   StepTitle,
 } from "~components/ui/step";
+import { getThreeLetterLocale } from "~utils/locale";
 import { useRegister, useUploadFile } from "~pages/shared/mutations";
 import { useUiSpec } from "~pages/shared/queries";
 import langConfigService from "~services/langConfig.service";
@@ -28,6 +29,7 @@ import {
   setCriticalErrorSelector,
   setStepSelector,
   SignUpStep,
+  userDataSelector,
   useSignUpStore,
 } from "../useSignUpStore";
 import { UploadFileErrorModal } from "./components/UploadFileErrorModal";
@@ -50,12 +52,13 @@ export const AccountSetup = ({ settings, methods }: AccountSetupProps) => {
 
   const [uiSchema, setUiSchema] = useState<FormConfig | null>(null);
 
-  const { setStep, criticalError, setCriticalError } = useSignUpStore(
+  const { setStep, criticalError, setCriticalError, userData } = useSignUpStore(
     useCallback(
       (state) => ({
         setStep: setStepSelector(state),
         setCriticalError: setCriticalErrorSelector(state),
         criticalError: criticalErrorSelector(state),
+        userData: userDataSelector(state),
       }),
       []
     )
@@ -135,7 +138,10 @@ export const AccountSetup = ({ settings, methods }: AccountSetupProps) => {
         userInfo: {
           ...data,
         },
-        locale: i18n.language,
+        locale: getThreeLetterLocale(
+          i18n.language,
+          uiSchema?.language?.langCodeMap
+        ),
       },
     };
 
@@ -166,19 +172,24 @@ export const AccountSetup = ({ settings, methods }: AccountSetupProps) => {
   useEffect(() => {
     if (!uiSchema) return;
     langConfigService.getLocaleConfiguration().then((langConfig) => {
-      if (JsonFormBuilder && !(window as any).__form_rendered__) {
+      if (JsonFormBuilder && !(window as any).__form_rendered__ && userData) {
+        const identifierKey = settings.response.configs["identifier.name"];
+        const fields = [...uiSchema.schema].filter(Boolean);
+
+        const index = fields.findIndex((f: any) => f.id === identifierKey);
+
+        if (index !== -1) {
+          const [identifier] = fields.splice(index, 1);
+          fields.unshift({ ...identifier, disabled: true });
+        }
+
         const form = JsonFormBuilder(
           {
             ...uiSchema,
-            language: {
-              ...uiSchema.language,
-              langCodeMap: langConfig.langCodeMapping,
-            },
-            allowedValues: {
-              ...uiSchema.allowedValues,
-              [identifierName]: `${
-                settings.response.configs["identifier.prefix"]
-              }${getValues("phone")}`,
+            schema: fields,
+            prefilledValues: {
+              [identifierName]:
+                userData[settings.response.configs["identifier.name"]],
             },
           },
           "form-container",

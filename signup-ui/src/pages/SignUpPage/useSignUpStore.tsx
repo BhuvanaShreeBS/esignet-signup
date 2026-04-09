@@ -19,6 +19,8 @@ const initialState = {
   resendOtp: false,
   resendAttempts: null,
   verificationChallengeError: null as Error | null,
+  userData: null,
+  uiSpecResponse: null,
 };
 
 export type SignUpStore = {
@@ -32,6 +34,10 @@ export type SignUpStore = {
   setResendAttempts: (resendAttempts: any) => void;
   verificationChallengeError: Error | null;
   setVerificationChallengeError: (verificationChallengeError: any) => void;
+  userData: Record<string, any> | null;
+  setUserData: (data: Record<string, any> | null) => void;
+  uiSpecResponse: Record<string, any> | null;
+  setUiSpecResponse: (data: Record<string, any> | null) => void;
   reset: () => void;
 };
 
@@ -68,7 +74,17 @@ export const useSignUpStore = create<SignUpStore>()(
         return;
       set(() => ({ verificationChallengeError }));
     },
-    reset: () => set(() => initialState)
+    setUserData: (data: Record<string, any> | null) => {
+      const current = get();
+      if (isEqual(current.userData, data)) return;
+      set(() => ({ userData: data }));
+    },
+    setUiSpecResponse: (data: Record<string, any> | null) => {
+      const current = get();
+      if (isEqual(current.uiSpecResponse, data)) return;
+      set(() => ({ uiSpecResponse: data }));
+    },
+    reset: () => set(() => initialState),
   }))
 );
 
@@ -78,17 +94,21 @@ export const stepSelector = (state: SignUpStore): SignUpStore["step"] =>
 export const setStepSelector = (state: SignUpStore): SignUpStore["setStep"] =>
   state.setStep;
 
-export const resendOtpSelector = (state: SignUpStore): SignUpStore["resendOtp"] =>
-  state.resendOtp;
+export const resendOtpSelector = (
+  state: SignUpStore
+): SignUpStore["resendOtp"] => state.resendOtp;
 
-export const setResendOtpSelector = (state: SignUpStore): SignUpStore["setResendOtp"] =>
-  state.setResendOtp;
+export const setResendOtpSelector = (
+  state: SignUpStore
+): SignUpStore["setResendOtp"] => state.setResendOtp;
 
-export const resendAttemptsSelector = (state: SignUpStore): SignUpStore["resendAttempts"] =>
-  state.resendAttempts;
+export const resendAttemptsSelector = (
+  state: SignUpStore
+): SignUpStore["resendAttempts"] => state.resendAttempts;
 
-export const setResendAttemptsSelector = (state: SignUpStore): SignUpStore["setResendAttempts"] =>
-  state.setResendAttempts;
+export const setResendAttemptsSelector = (
+  state: SignUpStore
+): SignUpStore["setResendAttempts"] => state.setResendAttempts;
 
 export const criticalErrorSelector = (
   state: SignUpStore
@@ -107,3 +127,18 @@ export const setVerificationChallengeErrorSelector = (
   state: SignUpStore
 ): SignUpStore["setVerificationChallengeError"] =>
   state.setVerificationChallengeError;
+
+export const userDataSelector = (state: SignUpStore): SignUpStore["userData"] =>
+  state.userData;
+
+export const setUserDataSelector = (
+  state: SignUpStore
+): SignUpStore["setUserData"] => state.setUserData;
+
+export const uiSpecResponseSelector = (
+  state: SignUpStore
+): SignUpStore["uiSpecResponse"] => state.uiSpecResponse;
+
+export const setUiSpecResponseSelector = (
+  state: SignUpStore
+): SignUpStore["setUiSpecResponse"] => state.setUiSpecResponse;

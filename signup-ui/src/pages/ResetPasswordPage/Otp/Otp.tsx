@@ -19,9 +19,9 @@ import {
   StepHeader,
   StepTitle,
 } from "~components/ui/step";
-import { base64FullName } from "~utils/fullName";
-import { getLocale } from "~utils/language";
-import { maskPhoneNumber } from "~utils/phone";
+import { base64Input } from "~utils/base64Input";
+import { getThreeLetterLocale } from "~utils/locale";
+import { maskData } from "~utils/mask";
 import { convertTime, getTimeoutTime } from "~utils/timer";
 import {
   useGenerateChallenge,
@@ -35,7 +35,6 @@ import {
   SettingsDto,
   VerifyChallengeRequestDto,
 } from "~typings/types";
-import { langCodeMappingSelector, useLanguageStore } from "~/useLanguageStore";
 
 import { resetPasswordFormDefaultValues } from "../ResetPasswordPage";
 import {
@@ -46,6 +45,8 @@ import {
   setResendOtpSelector,
   setStepSelector,
   stepSelector,
+  uiSpecResponseSelector,
+  userDataSelector,
   useResetPasswordStore,
 } from "../useResetPasswordStore";
 
@@ -66,6 +67,8 @@ export const Otp = ({ methods, settings }: OtpProps) => {
     setResendOtp,
     resendAttempts,
     setResendAttempts,
+    userData,
+    uiSpecResponse,
   } = useResetPasswordStore(
     useCallback(
       (state) => ({
@@ -75,15 +78,8 @@ export const Otp = ({ methods, settings }: OtpProps) => {
         setResendOtp: setResendOtpSelector(state),
         resendAttempts: resendAttemptsSelector(state),
         setResendAttempts: setResendAttemptsSelector(state),
-      }),
-      []
-    )
-  );
-
-  const { langCodeMapping } = useLanguageStore(
-    useCallback(
-      (state) => ({
-        langCodeMapping: langCodeMappingSelector(state),
+        userData: userDataSelector(state),
+        uiSpecResponse: uiSpecResponseSelector(state),
       }),
       []
     )
@@ -174,7 +170,7 @@ export const Otp = ({ methods, settings }: OtpProps) => {
   const handleResendOtp = useCallback(
     (e: any) => {
       e.preventDefault();
-      if (settings?.response.configs && resendAttempts > 0) {
+      if (settings?.response.configs && resendAttempts > 0 && userData) {
         setChallengeVerificationError(null);
         if (captchaRequired) {
           redirectBack(true);
@@ -182,11 +178,13 @@ export const Otp = ({ methods, settings }: OtpProps) => {
           const generateChallengeRequestDto: GenerateChallengeRequestDto = {
             requestTime: new Date().toISOString(),
             request: {
-              identifier: `${
-                settings.response.configs["identifier.prefix"]
-                }${getValues("username")}`,
-              captchaToken: getValues("captchaToken"),
-              locale: getLocale(i18n.language, langCodeMapping),
+              identifier:
+                userData[settings.response.configs["identifier.name"]],
+              captchaToken: userData.recaptchaToken,
+              locale: getThreeLetterLocale(
+                i18n.language,
+                uiSpecResponse?.language?.langCodeMap
+              ),
               regenerateChallenge: true,
               purpose: "RESET_PASSWORD",
             },
@@ -249,15 +247,22 @@ export const Otp = ({ methods, settings }: OtpProps) => {
 
       const isStepValid = await trigger();
 
-      if (isStepValid) {
+      if (isStepValid && userData) {
         setChallengeVerificationError(null);
+
+        const identifierKey = settings.response.configs["identifier.name"];
+
+        // remove identifier from userData
+        const {
+          [identifierKey]: identifier,
+          recaptchaToken,
+          ...restUserData
+        } = userData;
 
         const verifyChallengeRequestDto: VerifyChallengeRequestDto = {
           requestTime: new Date().toISOString(),
           request: {
-            identifier: `${
-              settings.response.configs["identifier.prefix"]
-              }${getValues("username")}`,
+            identifier: identifier,
             challengeInfo: [
               {
                 challenge: getValues("otp"),
@@ -265,7 +270,7 @@ export const Otp = ({ methods, settings }: OtpProps) => {
                 type: "OTP",
               },
               {
-                challenge: base64FullName(getValues("fullname"), "khm"),
+                challenge: base64Input(restUserData),
                 format: "base64url-encoded-json",
                 type: "KBI",
               },
@@ -281,8 +286,8 @@ export const Otp = ({ methods, settings }: OtpProps) => {
                   ...new Set([
                     "invalid_transaction",
                     ...ResetPasswordPossibleInvalid,
-                    ...criticalErrorsToPopup
-                  ])
+                    ...criticalErrorsToPopup,
+                  ]),
                 ].includes(errors[0].errorCode)
               ) {
                 setCriticalError(errors[0]);
@@ -321,24 +326,32 @@ export const Otp = ({ methods, settings }: OtpProps) => {
             className="absolute left-0"
             aria-label="Go back"
           >
-            <Icons.back
-              id="back-button"
-              name="back-button"
-            />
+            <Icons.back id="back-button" name="back-button" />
           </button>
           <StepTitle className="text-center text-[22px] font-semibold">
             {t("otp_header")}
           </StepTitle>
         </div>
         <StepDescription className="w-full pt-2 tracking-normal">
-          <div className="text-muted-neutral-gray">
-            {t("otp_subheader", {
-              no_of_digit: settings?.response.configs["otp.length"],
-            })}
-          </div>
+          {userData && (
+            <div className="text-muted-neutral-gray">
+              {t("otp_subheader", {
+                no_of_digit: settings?.response.configs["otp.length"],
+                identifier: t(
+                  settings.response.configs["identifier.name"] as any
+                ),
+              })}
+            </div>
+          )}
           <div className="font-medium text-muted-dark-gray">
-            <span>{settings.response.configs["identifier.prefix"]}</span>{" "}
-            <span>{maskPhoneNumber(getValues("username"), 4)}</span>
+            {userData && (
+              <span>
+                {maskData(
+                  `${userData[settings.response.configs["identifier.name"]]}`,
+                  4
+                )}
+              </span>
+            )}
           </div>
         </StepDescription>
       </StepHeader>
@@ -428,13 +441,13 @@ export const Otp = ({ methods, settings }: OtpProps) => {
             </Button>
             {resendAttempts !==
               settings.response.configs["resend.attempts"] && (
-                <ResendAttempt
-                  currentAttempts={resendAttempts}
-                  totalAttempts={settings.response.configs["resend.attempts"]}
-                  attemptRetryAfter={settings.response.configs["otp.blocked"]}
-                  showRetry={resendAttempts === 0 && resendOtpTotalSecs === 0}
-                />
-              )}
+              <ResendAttempt
+                currentAttempts={resendAttempts}
+                totalAttempts={settings.response.configs["resend.attempts"]}
+                attemptRetryAfter={settings.response.configs["otp.blocked"]}
+                showRetry={resendAttempts === 0 && resendOtpTotalSecs === 0}
+              />
+            )}
             {resendAttempts === 0 && resendOtpTotalSecs === 0 && (
               <Button
                 id="landing-page-button"
