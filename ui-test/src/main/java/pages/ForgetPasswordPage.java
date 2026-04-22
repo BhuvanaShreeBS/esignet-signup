@@ -25,19 +25,19 @@ public class ForgetPasswordPage extends BasePage {
 	@FindBy(id = "sign-in-with-esignet")
 	WebElement signInWithEsignet;
 
-	@FindBy(id = "phone_input")
+	@FindBy(id = "phone")
 	WebElement enterMobileNumberField;
 
 	@FindBy(xpath = "//img[@class='brand-logo']")
 	WebElement brandLogo;
 
-	@FindBy(xpath = "//span[@class='flex self-center border-r-[1px] border-input px-3 text-muted-foreground/60']")
+	@FindBy(xpath = "//input[@class='input_box prefix-button']")
 	WebElement phonePrefix;
 
-	@FindBy(id = "phone_input")
+	@FindBy(id = "phone")
 	WebElement phoneInput;
 
-	@FindBy(xpath = "//span[@class='flex self-center border-r-[1px] border-input px-3 text-muted-foreground/60']")
+	@FindBy(xpath = "//input[@class='input_box prefix-button']")
 	WebElement countryCodeSpan;
 
 	@FindBy(id = ":r4:-form-item-message")
@@ -55,8 +55,8 @@ public class ForgetPasswordPage extends BasePage {
 	@FindBy(xpath = "//label[@class='text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70']")
 	WebElement fullNameLabel;
 
-	@FindBy(id = "continue-button")
-	WebElement continueButton;
+	@FindBy(id = "form-submit-button")
+	WebElement submitButton;
 
 	@FindBy(id = "language-select-button")
 	WebElement langSelectionButton;
@@ -228,7 +228,7 @@ public class ForgetPasswordPage extends BasePage {
 	}
 
 	public boolean isContinueButtonVisible() {
-		return isElementVisible(continueButton, "check continue button displayed");
+		return isElementVisible(submitButton, "check continue button displayed");
 	}
 
 	public boolean isLangSelectionButtonVisible() {
@@ -257,7 +257,7 @@ public class ForgetPasswordPage extends BasePage {
 	}
 
 	public boolean isContinueButtonDisabled() {
-		return !isButtonEnabled(continueButton, "check continue button disabled");
+		return !isButtonEnabled(submitButton, "check continue button disabled");
 	}
 
 	public void enterFullName(String name) {
@@ -282,11 +282,11 @@ public class ForgetPasswordPage extends BasePage {
 	}
 
 	public boolean isContinueButtonEnabled() {
-		return isButtonEnabled(continueButton, "check continue button enabled");
+		return isButtonEnabled(submitButton, "check continue button enabled");
 	}
 
 	public void clickOnContinueButton() {
-		clickOnElement(continueButton, "click on continue button");
+		clickOnElement(submitButton, "click on continue button");
 	}
 
 	public boolean isResendOtpCountdownVisible() {

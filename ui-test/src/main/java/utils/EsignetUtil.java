@@ -624,35 +624,31 @@ public class EsignetUtil extends AdminTestUtil {
 			chars.append("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 		if (regex.contains("a-z"))
 			chars.append("abcdefghijklmnopqrstuvwxyz");
-		if (regex.contains("0-9") || regex.contains("\\d"))
+		if (regex.contains("\\d") || regex.contains("0-9"))
 			chars.append("0123456789");
-
-		if (chars.length() == 0) {
+		if (chars.length() == 0)
 			chars.append("abcdefghijklmnopqrstuvwxyz");
-		}
 
 		int min = 8, max = 8;
 		if (regex.contains("{") && regex.contains("}")) {
-			String range = regex.substring(regex.indexOf('{') + 1, regex.indexOf('}'));
+			String range = regex.substring(regex.indexOf("{") + 1, regex.indexOf("}"));
 			String[] parts = range.split(",");
-			try {
-				if (parts.length == 2) {
-					min = Integer.parseInt(parts[0].trim());
-					max = Integer.parseInt(parts[1].trim());
-				} else {
-					min = max = Integer.parseInt(parts[0].trim());
-				}
-			} catch (NumberFormatException ignored) {
-			}
+
+			min = Integer.parseInt(parts[0].trim());
+			max = (parts.length > 1) ? Integer.parseInt(parts[1].trim()) : min;
 		}
 
-		int length = min + random.nextInt(Math.max(1, max - min + 1));
-		StringBuilder sb = new StringBuilder();
+		int length = min + random.nextInt(max - min + 1);
+		StringBuilder value = new StringBuilder();
 		for (int i = 0; i < length; i++) {
-			sb.append(chars.charAt(random.nextInt(chars.length())));
+			value.append(chars.charAt(random.nextInt(chars.length())));
 		}
 
-		return sb.toString();
+		if (regex.contains("(?!0)") && value.charAt(0) == '0') {
+			value.setCharAt(0, (char) ('1' + random.nextInt(9)));
+		}
+
+		return value.toString();
 	}
 
 	public static Map<String, Map<String, Object>> getUiSpecFields() {
@@ -691,6 +687,21 @@ public class EsignetUtil extends AdminTestUtil {
 
 		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 		return dob.format(formatter);
+	}
+
+	public static String getIdentifierFieldId() {
+		return getValueFromSignupActuator("applicationConfig: [classpath:/application-default.properties]",
+				"mosip.signup.identifier.name");
+	}
+	
+	public static String getRemoveCountryCode() {
+		return getValueFromSignupActuator("applicationConfig: [classpath:/application-default.properties]",
+				"mosip.signup.sms-notification.remove-country-code");
+	}
+	
+	public static String getIdentifierPrefix() {
+		return getValueFromSignupActuator("applicationConfig: [classpath:/application-default.properties]",
+				"mosip.signup.identifier.prefix");
 	}
 
 }
