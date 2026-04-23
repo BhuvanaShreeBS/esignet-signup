@@ -44,21 +44,13 @@ public class ForgetPasswordStepDefinition {
 		String regex = EsignetUtil.getRegexForField(fieldId);
 		String value = EsignetUtil.generateValueFromRegex(regex);
 		RegisteredDetails.setMobileNumber(value);
-		logger.info(value + " is entered as mobile number for forget password flow");
-		forgetPasswordPage.enterMobileNumber(value);
+		forgetPasswordPage.enterIdentifierValue(value);
 	}
 
 	@When("user enters the OTP")
 	public void userEnterOtp() {
 		String number = RegisteredDetails.getMobileNumber();
-		boolean removeCode = Boolean.parseBoolean(EsignetUtil.getRemoveCountryCode());
-		String prefix = EsignetUtil.getIdentifierPrefix();
-		prefix = EsignetUtil.removeLeadingPlusSigns(prefix);
-		if (removeCode) {
-			number = number.replace(prefix, "");
-		} else if (!number.startsWith(prefix)) {
-			number = prefix + number;
-		}
+		number = EsignetUtil.normalizeIdentifierForOtp(number);
 		forgetPasswordPage.enterOtp(OTPListener.getOtp(number));
 	}
 

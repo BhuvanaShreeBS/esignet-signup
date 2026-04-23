@@ -348,15 +348,7 @@ public class SignUpStepDef {
 
 	@When("user enters the complete 6-digit OTP")
 	public void userEntersOtp() {
-		String number = lastGeneratedIdentifier;
-		boolean removeCode = Boolean.parseBoolean(EsignetUtil.getRemoveCountryCode());
-		String prefix = EsignetUtil.getIdentifierPrefix();
-		prefix = EsignetUtil.removeLeadingPlusSigns(prefix);
-		if (removeCode) {
-			number = number.replace(prefix, "");
-		} else if (!number.startsWith(prefix)) {
-			number = prefix + number;
-		}
+		String number = EsignetUtil.normalizeIdentifierForOtp(lastGeneratedIdentifier);
 		registrationPage.enterOtp(OTPListener.getOtp(number));
 	}
 
@@ -883,7 +875,7 @@ public class SignUpStepDef {
 
 	@When("user enters already registered number in the mobile number text box")
 	public void userEntersRegisteredMobileNumber() {
-		registrationPage.enterMobileNumber(lastGeneratedIdentifier);
+		registrationPage.enterIdentifierValue(lastGeneratedIdentifier);
 	}
 
 	private String lastGeneratedPassword;

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.log4j.Level;
@@ -616,30 +617,46 @@ public class EsignetUtil extends AdminTestUtil {
 		if (regex == null || regex.isEmpty()) {
 			return "defaultValue";
 		}
-
 		Random random = new Random();
-
 		StringBuilder chars = new StringBuilder();
+
 		if (regex.contains("A-Z"))
 			chars.append("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+
 		if (regex.contains("a-z"))
 			chars.append("abcdefghijklmnopqrstuvwxyz");
+
 		if (regex.contains("\\d") || regex.contains("0-9"))
 			chars.append("0123456789");
+
 		if (chars.length() == 0)
 			chars.append("abcdefghijklmnopqrstuvwxyz");
 
 		int min = 8, max = 8;
-		if (regex.contains("{") && regex.contains("}")) {
-			String range = regex.substring(regex.indexOf("{") + 1, regex.indexOf("}"));
-			String[] parts = range.split(",");
 
-			min = Integer.parseInt(parts[0].trim());
-			max = (parts.length > 1) ? Integer.parseInt(parts[1].trim()) : min;
+		try {
+			Matcher matcher = Pattern.compile("\\{(\\d*)(?:,(\\d*))?\\}").matcher(regex);
+
+			if (matcher.find()) {
+				String minStr = matcher.group(1);
+				String maxStr = matcher.group(2);
+
+				min = minStr.isEmpty() ? 1 : Integer.parseInt(minStr);
+				max = (maxStr == null || maxStr.isEmpty()) ? min : Integer.parseInt(maxStr);
+
+				if (max < min) {
+					max = min;
+				}
+			}
+		} catch (Exception e) {
+			min = 8;
+			max = 8;
 		}
 
 		int length = min + random.nextInt(max - min + 1);
+
 		StringBuilder value = new StringBuilder();
+
 		for (int i = 0; i < length; i++) {
 			value.append(chars.charAt(random.nextInt(chars.length())));
 		}
@@ -693,15 +710,35 @@ public class EsignetUtil extends AdminTestUtil {
 		return getValueFromSignupActuator("applicationConfig: [classpath:/application-default.properties]",
 				"mosip.signup.identifier.name");
 	}
-	
+
 	public static String getRemoveCountryCode() {
 		return getValueFromSignupActuator("applicationConfig: [classpath:/application-default.properties]",
 				"mosip.signup.sms-notification.remove-country-code");
 	}
-	
+
 	public static String getIdentifierPrefix() {
 		return getValueFromSignupActuator("applicationConfig: [classpath:/application-default.properties]",
 				"mosip.signup.identifier.prefix");
+	}
+
+	public static String normalizeIdentifierForOtp(String number) {
+		boolean removeCode = Boolean.parseBoolean(getRemoveCountryCode());
+		String prefix = getIdentifierPrefix();
+
+		prefix = removeLeadingPlusSigns(prefix);
+		number = removeLeadingPlusSigns(number);
+
+		if (removeCode) {
+			if (number.startsWith(prefix)) {
+				number = number.substring(prefix.length());
+			}
+		} else {
+			if (!number.startsWith(prefix)) {
+				number = prefix + number;
+			}
+		}
+
+		return number;
 	}
 
 }

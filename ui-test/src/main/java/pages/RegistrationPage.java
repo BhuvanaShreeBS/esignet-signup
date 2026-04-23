@@ -279,8 +279,7 @@ public class RegistrationPage extends BasePage {
 	}
 
 	public void enterMobileNumber(String number) {
-		enterMobileNumberTextBox.clear();
-		enterText(enterMobileNumberTextBox, number, "Entered Mobile Number");
+		enterIdentifierValue(number);
 		lastEnteredIdentifier = number;
 	}
 

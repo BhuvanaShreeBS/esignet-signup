@@ -25,15 +25,12 @@ public class ForgetPasswordPage extends BasePage {
 	@FindBy(id = "sign-in-with-esignet")
 	WebElement signInWithEsignet;
 
-	@FindBy(id = "phone")
-	WebElement enterMobileNumberField;
-
 	@FindBy(xpath = "//img[@class='brand-logo']")
 	WebElement brandLogo;
 
 	@FindBy(xpath = "//input[@class='input_box prefix-button']")
 	WebElement phonePrefix;
-
+	
 	@FindBy(id = "phone")
 	WebElement phoneInput;
 
@@ -49,10 +46,10 @@ public class ForgetPasswordPage extends BasePage {
 	@FindBy(xpath = "//div[@class='text-center text-gray-500']")
 	WebElement forgetPasswordSubHeadning;
 
-	@FindBy(xpath = "//label[@class='text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70']")
+	@FindBy(xpath = "//div[@class='label-div-display']")
 	WebElement userNameLabel;
 
-	@FindBy(xpath = "//label[@class='text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70']")
+	@FindBy(xpath = "//label[@for='fullname']")
 	WebElement fullNameLabel;
 
 	@FindBy(id = "form-submit-button")
@@ -163,9 +160,8 @@ public class ForgetPasswordPage extends BasePage {
 	@FindBy(id = "reset-password-button")
 	WebElement resetPasswordButton;
 
-	public void enterMobileNumber(String number) {
-		enterMobileNumberField.clear();
-		enterText(enterMobileNumberField, number, "Enterd Mobile Number");
+	public void enterMobileNumber(String value) {
+		enterIdentifierValue(value);
 	}
 
 	public void clickOnSignInWIthEsignet() {
@@ -195,16 +191,15 @@ public class ForgetPasswordPage extends BasePage {
 
 	public boolean isCountryCodeNonEditable() {
 		return isElementVisible(countryCodeSpan, "check country code is displayed")
-				&& !getElementTagName(countryCodeSpan).equalsIgnoreCase("input");
+				&& countryCodeSpan.getAttribute("readonly") != null;
 	}
-
+	
 	public boolean isPhoneErrorVisible() {
 		return !phoneErrorForInvalidValue.isEmpty() && phoneErrorForInvalidValue.get(0).isDisplayed();
 	}
 
 	public void enterPhoneNumber(String number) {
-		phoneInput.clear();
-		enterText(phoneInput, number, "Entered phone number");
+			enterIdentifierValue(number);
 	}
 
 	public void triggerPhoneValidation() {
@@ -507,5 +502,15 @@ public class ForgetPasswordPage extends BasePage {
 	public void clickOnResetPasswordButton() {
 		clickOnElement(resetPasswordButton, "click on reset password button");
 	}
-
+	
+	public WebElement getIdentifierFieldElement() {
+	    String fieldId = EsignetUtil.getIdentifierFieldId();
+	    return driver.findElement(By.id(fieldId));
+	}
+	
+	public void enterIdentifierValue(String value) {
+	    WebElement field = getIdentifierFieldElement();
+	    field.clear();
+	    enterText(field, value, "Entered Identifier Value");
+	}
 }
